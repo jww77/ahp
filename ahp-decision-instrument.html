@@ -1,0 +1,1300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interactive Analytic Hierarchy Process (AHP) Model in 3-D Space</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  :root{
+    --ink:#0a0e1a;
+    --ink-2:#0f1524;
+    --panel:#121a2c;
+    --panel-2:#172135;
+    --line:#26314c;
+    --line-soft:#1c263d;
+    --text:#e7ecf6;
+    --muted:#93a0bd;
+    --faint:#5e6c8c;
+    --brass:#d9a441;
+    --brass-dim:#9a7a32;
+    --brass-soft:rgba(217,164,65,.14);
+    --teal:#46c2b4;
+    --violet:#9b8cff;
+    --gold:#f2c45a;
+    --good:#46c28a;
+    --warn:#e6b94e;
+    --bad:#e8694f;
+    --radius:14px;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+    --disp:'Space Grotesk',system-ui,sans-serif;
+    --body:'Inter',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(217,164,65,.06), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, rgba(70,194,180,.05), transparent 60%),
+      var(--ink);
+    color:var(--text);
+    font-family:var(--body);
+    font-size:14px;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+
+  /* ---------- header ---------- */
+  header.topbar{
+    display:flex;align-items:center;gap:18px;
+    padding:12px 20px;border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,var(--ink-2),rgba(15,21,36,.6));
+    flex:0 0 auto;
+  }
+  .brandmark{display:flex;align-items:center;gap:12px;min-width:0}
+  .balance-icon{width:34px;height:34px;flex:0 0 auto}
+  .brand-txt{min-width:0;max-width:340px}
+  .brand-txt h1{
+    font-family:var(--disp);font-weight:600;font-size:13.5px;letter-spacing:.2px;
+    margin:0;white-space:normal;line-height:1.22;
+  }
+  .brand-txt .sub{font-size:10px;color:var(--faint);letter-spacing:.16em;text-transform:uppercase;margin-top:2px}
+  .goalwrap{margin-left:6px;display:flex;align-items:center;gap:10px;flex:1;min-width:0}
+  .goalwrap label{font-size:11px;color:var(--faint);letter-spacing:.14em;text-transform:uppercase;white-space:nowrap}
+  #goalInput{
+    flex:1;min-width:120px;background:var(--panel);border:1px solid var(--line);
+    color:var(--text);font-family:var(--disp);font-size:15px;font-weight:500;
+    padding:8px 12px;border-radius:10px;outline:none;
+  }
+  #goalInput:focus{border-color:var(--brass);box-shadow:0 0 0 3px var(--brass-soft)}
+
+  /* ---------- nav ---------- */
+  nav.tabs{display:flex;gap:4px;padding:0 14px;border-bottom:1px solid var(--line);background:var(--ink-2);flex:0 0 auto;overflow-x:auto}
+  nav.tabs button{
+    appearance:none;border:none;background:transparent;color:var(--muted);
+    font-family:var(--disp);font-size:13px;font-weight:500;letter-spacing:.02em;
+    padding:13px 16px 11px;cursor:pointer;position:relative;white-space:nowrap;
+    border-bottom:2px solid transparent;transition:color .15s;
+  }
+  nav.tabs button .n{font-family:var(--mono);font-size:11px;color:var(--faint);margin-right:7px}
+  nav.tabs button:hover{color:var(--text)}
+  nav.tabs button.active{color:var(--brass);border-bottom-color:var(--brass)}
+  nav.tabs button.active .n{color:var(--brass)}
+
+  /* ---------- main split ---------- */
+  .stage{display:grid;grid-template-columns:1.15fr 1fr;flex:1;min-height:0}
+  @media (max-width:980px){.stage{grid-template-columns:1fr;grid-template-rows:300px 1fr}}
+
+  .scene-col{position:relative;border-right:1px solid var(--line);min-height:0;background:
+     radial-gradient(700px 500px at 50% 30%, rgba(70,194,180,.05), transparent 65%);}
+  #scene{position:absolute;inset:0}
+  .scene-hud{position:absolute;left:14px;top:12px;pointer-events:none;font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.04em}
+  .scene-hud b{color:var(--muted);font-weight:500}
+  .scene-ctrls{position:absolute;right:12px;bottom:12px;display:flex;gap:6px}
+  .scene-ctrls button{
+    pointer-events:auto;background:rgba(18,26,44,.85);border:1px solid var(--line);
+    color:var(--muted);font-family:var(--mono);font-size:11px;padding:6px 9px;border-radius:8px;cursor:pointer;backdrop-filter:blur(6px);
+  }
+  .scene-ctrls button:hover{color:var(--brass);border-color:var(--brass)}
+  .scene-ctrls button.on{color:var(--brass);border-color:var(--brass)}
+  .legend{position:absolute;left:14px;bottom:12px;display:flex;gap:14px;font-size:11px;color:var(--muted);font-family:var(--mono)}
+  .legend span{display:flex;align-items:center;gap:6px}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+  .space-ctrls{position:absolute;left:14px;top:36px;display:flex;flex-direction:column;gap:6px;background:rgba(14,20,32,.82);border:1px solid var(--line);border-radius:10px;padding:9px 11px;backdrop-filter:blur(6px)}
+  .space-ctrls label{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .space-ctrls .ax{width:46px}
+  .space-ctrls .ax-x{color:var(--teal)}
+  .space-ctrls .ax-z{color:var(--violet)}
+  .space-ctrls select{background:var(--ink-2);color:var(--text);border:1px solid var(--line);border-radius:7px;padding:4px 7px;font-family:var(--body);font-size:12px;outline:none;max-width:150px}
+  .space-ctrls select:focus{border-color:var(--brass)}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .scene-ctrls .seg button{background:rgba(18,26,44,.85);border:none;border-radius:0;color:var(--muted);font-family:var(--mono);font-size:11px;padding:6px 10px}
+  .scene-ctrls .seg button.on{background:var(--brass-soft);color:var(--brass);border-color:transparent}
+
+  /* ---------- panel ---------- */
+  .panel-col{overflow-y:auto;min-height:0;padding:0 0 60px}
+  .panel-col::-webkit-scrollbar{width:10px}
+  .panel-col::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px}
+  .pane{display:none;padding:22px 24px}
+  .pane.active{display:block;animation:fade .25s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+  .eyebrow{font-family:var(--mono);font-size:11px;color:var(--brass);letter-spacing:.18em;text-transform:uppercase;margin:0 0 4px}
+  h2.pane-title{font-family:var(--disp);font-weight:600;font-size:22px;margin:0 0 6px;letter-spacing:.2px}
+  .lede{color:var(--muted);max-width:62ch;margin:0 0 20px}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;margin-bottom:16px}
+  .card h3{font-family:var(--disp);font-weight:600;font-size:14px;margin:0 0 12px;letter-spacing:.02em;display:flex;align-items:center;gap:8px}
+  .card h3 .tag{font-family:var(--mono);font-size:10px;color:var(--faint);font-weight:400;letter-spacing:.1em}
+
+  /* list editor */
+  .item-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .item-row .grip{font-family:var(--mono);color:var(--faint);font-size:12px;width:20px;text-align:center}
+  .item-row input{flex:1;background:var(--ink-2);border:1px solid var(--line);color:var(--text);padding:8px 11px;border-radius:9px;font-family:var(--body);font-size:13px;outline:none}
+  .item-row input:focus{border-color:var(--brass)}
+  .item-row .swatch{width:10px;height:10px;border-radius:3px;flex:0 0 auto}
+  .iconbtn{background:transparent;border:1px solid var(--line);color:var(--muted);width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center}
+  .iconbtn:hover{border-color:var(--bad);color:var(--bad)}
+  .addbtn{background:var(--brass-soft);border:1px dashed var(--brass);color:var(--brass);padding:8px 12px;border-radius:9px;cursor:pointer;font-family:var(--disp);font-size:12px;font-weight:500;width:100%;margin-top:4px}
+  .addbtn:hover{background:rgba(217,164,65,.2)}
+
+  .btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+  .btn{font-family:var(--disp);font-weight:500;font-size:12px;border-radius:9px;padding:9px 14px;cursor:pointer;border:1px solid var(--line);background:var(--panel-2);color:var(--text)}
+  .btn:hover{border-color:var(--brass)}
+  .btn.primary{background:var(--brass);border-color:var(--brass);color:#21170a;font-weight:600}
+  .btn.primary:hover{background:var(--gold)}
+  .btn.ghost{background:transparent}
+
+  /* ---------- balance / pairwise ---------- */
+  .pair{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px 16px;margin-bottom:14px}
+  .pair .ends{display:flex;justify-content:space-between;gap:12px;margin-bottom:4px}
+  .pair .end{font-family:var(--disp);font-weight:600;font-size:13px;max-width:45%}
+  .pair .end.l{text-align:left}
+  .pair .end.r{text-align:right}
+  .beam-wrap{height:54px;position:relative;margin:2px 0 2px}
+  .beam-svg{width:100%;height:100%;overflow:visible}
+  .pair input[type=range]{width:100%;-webkit-appearance:none;appearance:none;height:4px;border-radius:4px;background:var(--line);outline:none;margin:6px 0 2px}
+  .pair input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--brass);border:3px solid var(--ink);cursor:pointer;box-shadow:0 0 0 1px var(--brass)}
+  .pair input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--brass);border:3px solid var(--ink);cursor:pointer}
+  .pair .verdict{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--muted)}
+  .pair .verdict .word{color:var(--text);font-weight:500}
+  .pair .verdict .ratio{font-family:var(--mono);color:var(--brass);font-size:12px}
+
+  /* result weights bars */
+  .wbar{margin-bottom:11px}
+  .wbar .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px}
+  .wbar .nm{font-weight:500;font-size:13px}
+  .wbar .val{font-family:var(--mono);font-size:13px;color:var(--brass)}
+  .track{height:9px;background:var(--ink-2);border-radius:6px;overflow:hidden;border:1px solid var(--line-soft)}
+  .fill{height:100%;border-radius:6px;transition:width .4s cubic-bezier(.2,.7,.2,1)}
+
+  .rank{display:flex;align-items:center;gap:12px;padding:11px 13px;border:1px solid var(--line);border-radius:11px;margin-bottom:9px;background:var(--panel)}
+  .rank.win{border-color:var(--brass);background:linear-gradient(90deg,var(--brass-soft),transparent)}
+  .rank .pos{font-family:var(--mono);font-size:13px;color:var(--faint);width:26px}
+  .rank.win .pos{color:var(--brass)}
+  .rank .nm{flex:1;font-family:var(--disp);font-weight:600;font-size:14px}
+  .rank .sc{font-family:var(--mono);font-size:14px;color:var(--text)}
+  .rank .crown{color:var(--brass)}
+
+  /* consistency meter */
+  .cr-meter{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:11px;border:1px solid var(--line);background:var(--panel-2);margin-bottom:8px}
+  .cr-dotbig{width:11px;height:11px;border-radius:50%;flex:0 0 auto}
+  .cr-meter .lab{font-size:12.5px;color:var(--muted)}
+  .cr-meter .num{font-family:var(--mono);font-size:13px;margin-left:auto}
+  .hotspot{font-size:12.5px;color:var(--muted);background:rgba(232,105,79,.08);border:1px solid rgba(232,105,79,.3);border-radius:10px;padding:10px 12px;margin-top:8px;line-height:1.5}
+  .hotspot b{color:var(--text)}
+  .hotspot .fix{margin-top:8px}
+  .hotspot button{font-family:var(--disp);font-size:11px;font-weight:500;background:transparent;border:1px solid var(--bad);color:var(--bad);padding:5px 10px;border-radius:8px;cursor:pointer}
+  .hotspot button:hover{background:rgba(232,105,79,.15)}
+
+  .crit-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+  .crit-tabs button{font-family:var(--disp);font-size:12px;font-weight:500;background:var(--panel);border:1px solid var(--line);color:var(--muted);padding:7px 12px;border-radius:20px;cursor:pointer}
+  .crit-tabs button.active{background:var(--brass-soft);border-color:var(--brass);color:var(--brass)}
+  .crit-tabs button .w{font-family:var(--mono);font-size:10px;margin-left:6px;color:var(--faint)}
+  .crit-tabs button.active .w{color:var(--brass)}
+
+  /* sensitivity sliders */
+  .sens-row{margin-bottom:13px}
+  .sens-row .top{display:flex;justify-content:space-between;margin-bottom:5px;font-size:12.5px}
+  .sens-row .top .v{font-family:var(--mono);color:var(--teal)}
+  .sens-row input[type=range]{width:100%;-webkit-appearance:none;height:4px;border-radius:4px;background:var(--line)}
+  .sens-row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:var(--teal);border:3px solid var(--ink);cursor:pointer}
+  .sens-row input[type=range]::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:var(--teal);border:3px solid var(--ink);cursor:pointer}
+
+  .note{font-size:12.5px;color:var(--faint);margin-top:10px;line-height:1.55}
+  .pill{display:inline-block;font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:20px;border:1px solid var(--line);color:var(--muted);margin-right:6px}
+
+  /* prose for guide / facilitation */
+  .prose{max-width:64ch}
+  .prose h3{font-family:var(--disp);font-weight:600;font-size:15px;margin:22px 0 8px;color:var(--text)}
+  .prose h3:first-child{margin-top:0}
+  .prose p{color:var(--muted);margin:0 0 12px}
+  .prose ul{color:var(--muted);margin:0 0 14px;padding-left:18px}
+  .prose li{margin-bottom:7px}
+  .prose strong{color:var(--text);font-weight:600}
+  .prose .step{display:flex;gap:14px;margin-bottom:14px;align-items:flex-start}
+  .prose .step .k{font-family:var(--mono);font-size:12px;color:var(--brass);border:1px solid var(--brass);border-radius:8px;min-width:30px;height:30px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;margin-top:1px}
+  .prose .step .body{flex:1}
+  .prose .step .body b{color:var(--text);font-family:var(--disp);font-weight:600}
+  .callout{border-left:2px solid var(--brass);background:var(--brass-soft);padding:12px 14px;border-radius:0 10px 10px 0;margin:0 0 16px;color:var(--muted);font-size:13px}
+  .callout b{color:var(--text)}
+  .scale-table{width:100%;border-collapse:collapse;font-size:12.5px;margin:4px 0 16px}
+  .scale-table td{padding:6px 8px;border-bottom:1px solid var(--line-soft);color:var(--muted)}
+  .scale-table td:first-child{font-family:var(--mono);color:var(--brass);width:42px}
+  .scale-table td:nth-child(2){color:var(--text);font-weight:500;width:150px}
+
+  .timeline-row{display:flex;gap:0;margin-bottom:2px}
+  .timeline-row .time{font-family:var(--mono);font-size:11px;color:var(--brass);width:64px;flex:0 0 auto;padding-top:2px}
+  .timeline-row .what{flex:1;border-left:1px solid var(--line);padding:0 0 16px 16px;position:relative}
+  .timeline-row .what::before{content:'';position:absolute;left:-4px;top:5px;width:7px;height:7px;border-radius:50%;background:var(--brass)}
+  .timeline-row .what b{font-family:var(--disp);color:var(--text);font-weight:600;font-size:13.5px;display:block;margin-bottom:3px}
+  .timeline-row .what span{color:var(--muted);font-size:12.5px}
+
+  .footnote{font-size:11px;color:var(--faint);text-align:center;padding:14px}
+  a.inline{color:var(--brass);text-decoration:none;border-bottom:1px solid var(--line)}
+
+  /* ---------- assistant ---------- */
+  .assist{position:relative;overflow:hidden;background:linear-gradient(180deg,var(--panel-2),var(--panel));border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;margin-bottom:18px}
+  .assist::after{content:'';position:absolute;inset:0;background:radial-gradient(420px 150px at 100% 0,var(--brass-soft),transparent 70%);pointer-events:none}
+  .assist h3{font-family:var(--disp);font-weight:600;font-size:14px;margin:0 0 4px;letter-spacing:.02em;display:flex;align-items:center;gap:8px}
+  .assist h3 .tag{font-family:var(--mono);font-size:10px;color:var(--faint);font-weight:400;letter-spacing:.1em}
+  .assist .hint{font-size:12.5px;color:var(--muted);margin:0 0 12px}
+  .tmpl-row{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px}
+  .tmpl{font-family:var(--disp);font-size:12px;font-weight:500;background:var(--ink-2);border:1px solid var(--line);color:var(--muted);padding:7px 12px;border-radius:20px;cursor:pointer;transition:.14s}
+  .tmpl:hover{border-color:var(--brass);color:var(--brass)}
+  .assist textarea{width:100%;background:var(--ink-2);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:11px 12px;font-family:var(--body);font-size:13px;resize:vertical;min-height:60px;outline:none}
+  .assist textarea:focus{border-color:var(--brass);box-shadow:0 0 0 3px var(--brass-soft)}
+  .assist-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
+  .assist .btn:disabled{opacity:.45;cursor:default}
+  .spinner{width:15px;height:15px;border:2px solid var(--line);border-top-color:var(--brass);border-radius:50%;animation:spin .7s linear infinite;display:none}
+  .spinner.on{display:inline-block}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .assist-status{font-size:12px;color:var(--muted)}
+  .assist-status.err{color:var(--bad)}
+  .sugg-wrap{margin-top:14px;display:none}
+  .sugg-wrap.on{display:block}
+  .sugg-group{margin-bottom:12px}
+  .sugg-group h4{font-family:var(--disp);font-size:11px;letter-spacing:.06em;color:var(--faint);text-transform:uppercase;margin:0 0 8px}
+  .sugg{display:flex;gap:10px;align-items:flex-start;padding:9px 11px;border:1px solid var(--line);border-radius:10px;margin-bottom:7px;background:var(--ink-2);cursor:pointer;transition:.12s}
+  .sugg:hover{border-color:var(--brass)}
+  .sugg.off{opacity:.4}
+  .sugg .chk{width:16px;height:16px;border-radius:5px;border:1.5px solid var(--brass);flex:0 0 auto;margin-top:1px;display:flex;align-items:center;justify-content:center;color:#21170a;font-size:11px;line-height:1;background:transparent}
+  .sugg .chk::after{content:'✓';opacity:0}
+  .sugg.on .chk{background:var(--brass)}
+  .sugg.on .chk::after{opacity:1}
+  .sugg .body{flex:1;min-width:0}
+  .sugg .nm{font-weight:600;font-size:13px}
+  .sugg .why{font-size:12px;color:var(--muted);margin-top:2px;line-height:1.4}
+
+  .item{margin-bottom:10px}
+  .item .item-row{margin-bottom:0}
+  .why-line{font-size:11.5px;color:var(--faint);margin:3px 0 0 30px;line-height:1.4}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brandmark">
+      <svg class="balance-icon" viewBox="0 0 48 48" fill="none">
+        <line x1="24" y1="7" x2="24" y2="40" stroke="#d9a441" stroke-width="2.4" stroke-linecap="round"/>
+        <line x1="9" y1="15" x2="39" y2="15" stroke="#d9a441" stroke-width="2.4" stroke-linecap="round"/>
+        <circle cx="24" cy="7" r="2.6" fill="#d9a441"/>
+        <path d="M9 15 L4 26 a5 5 0 0 0 10 0 Z" stroke="#46c2b4" stroke-width="1.8" fill="rgba(70,194,180,.12)"/>
+        <path d="M39 15 L34 26 a5 5 0 0 0 10 0 Z" stroke="#9b8cff" stroke-width="1.8" fill="rgba(155,140,255,.12)"/>
+        <rect x="18" y="40" width="12" height="3" rx="1.5" fill="#d9a441"/>
+      </svg>
+      <div class="brand-txt">
+        <h1>Interactive Analytic Hierarchy Process (AHP) Model in 3-D Space</h1>
+        <div class="sub">Facilitated decision instrument</div>
+      </div>
+    </div>
+    <div class="goalwrap">
+      <label for="goalInput">Goal</label>
+      <input id="goalInput" value="Select the best vendor" spellcheck="false">
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabnav">
+    <button data-pane="setup" class="active"><span class="n">01</span>Structure</button>
+    <button data-pane="criteria"><span class="n">02</span>Weigh criteria</button>
+    <button data-pane="options"><span class="n">03</span>Score options</button>
+    <button data-pane="results"><span class="n">04</span>Results</button>
+    <button data-pane="guide"><span class="n">05</span>Guide</button>
+    <button data-pane="facil"><span class="n">06</span>Facilitation</button>
+  </nav>
+
+  <div class="stage">
+    <div class="scene-col">
+      <div id="scene"></div>
+      <div class="scene-hud" id="sceneHud"><b>DECISION SPACE</b> · height = overall priority</div>
+      <div class="space-ctrls" id="spaceCtrls">
+        <label><span class="ax ax-x">Across</span><select id="axisXSel"></select></label>
+        <label><span class="ax ax-z">Depth</span><select id="axisYSel"></select></label>
+      </div>
+      <div class="legend" id="legend">
+        <span><i class="dot" style="background:#f2c45a"></i>Goal</span>
+        <span><i class="dot" style="background:#46c2b4"></i>Criteria</span>
+        <span><i class="dot" style="background:#9b8cff"></i>Options</span>
+      </div>
+      <div class="scene-ctrls">
+        <div class="seg" id="viewSeg">
+          <button data-view="space" class="on">Decision space</button>
+          <button data-view="tree">Hierarchy</button>
+        </div>
+        <button id="spinBtn">auto-spin</button>
+        <button id="resetView">recenter</button>
+      </div>
+    </div>
+
+    <div class="panel-col">
+      <!-- ============ STRUCTURE ============ -->
+      <section class="pane active" id="pane-setup">
+        <p class="eyebrow">Step one</p>
+        <h2 class="pane-title">Frame the decision</h2>
+        <p class="lede">Start from a template, describe the decision and let the assistant propose a structure, or type your own. Everything below stays fully editable. Keep each list to roughly three to seven entries so every comparison set stays small enough to hold in mind.</p>
+
+        <div class="assist">
+          <h3>Build with assistance <span class="tag">templates · ai</span></h3>
+          <p class="hint">Pick a starting point, or describe your decision in a sentence and let the assistant suggest criteria and options you can tick and add.</p>
+          <div class="tmpl-row" id="tmplRow"></div>
+          <textarea id="assistGoal" spellcheck="false" placeholder="Describe the decision in a sentence. e.g. Choose a CRM platform for a 200-person sales team that must integrate with our finance system."></textarea>
+          <div class="assist-actions" id="assistMain">
+            <button class="btn primary" id="assistFull">Suggest criteria &amp; options</button>
+            <button class="btn ghost" id="assistMoreCrit">More criteria</button>
+            <button class="btn ghost" id="assistOpts">Suggest options</button>
+            <span class="spinner" id="assistSpin"></span>
+            <span class="assist-status" id="assistStatus"></span>
+          </div>
+          <div class="sugg-wrap" id="suggWrap"></div>
+        </div>
+
+        <div class="card">
+          <h3>Criteria <span class="tag">what matters</span></h3>
+          <div id="critList"></div>
+          <button class="addbtn" id="addCrit">+ Add criterion</button>
+        </div>
+
+        <div class="card">
+          <h3>Options <span class="tag">the choices</span></h3>
+          <div id="optList"></div>
+          <button class="addbtn" id="addOpt">+ Add option</button>
+        </div>
+
+        <div class="btnrow">
+          <button class="btn primary" id="toCriteria">Begin weighing →</button>
+          <button class="btn ghost" id="loadDemo">Load example judgments</button>
+          <button class="btn ghost" id="resetEqual">Reset to neutral</button>
+        </div>
+        <p class="note">Loading the example fills every judgment with a worked vendor-selection scenario so a group can see a finished model before entering their own. Reset returns every comparison to equal.</p>
+      </section>
+
+      <!-- ============ CRITERIA ============ -->
+      <section class="pane" id="pane-criteria">
+        <p class="eyebrow">Step two</p>
+        <h2 class="pane-title">Weigh the criteria</h2>
+        <p class="lede">For each pair, tip the balance toward the criterion that matters more for this goal, and by how much. You are not scoring options yet. You are deciding what the decision is about.</p>
+        <div id="critPairs"></div>
+        <div class="card" id="critConsistency"></div>
+        <div class="btnrow"><button class="btn primary" id="toOptions">Score the options →</button></div>
+      </section>
+
+      <!-- ============ OPTIONS ============ -->
+      <section class="pane" id="pane-options">
+        <p class="eyebrow">Step three</p>
+        <h2 class="pane-title">Score options, one criterion at a time</h2>
+        <p class="lede">Pick a criterion, then compare the options against each other on that criterion alone. Tilt the beam toward the option you prefer on this criterion. For something like cost, that means tilting toward the cheaper option, since lower cost is the thing you want. Judging one lens at a time is what keeps the comparisons honest.</p>
+        <div class="crit-tabs" id="critTabs"></div>
+        <div id="optPairs"></div>
+        <div class="card" id="optConsistency"></div>
+        <div class="btnrow"><button class="btn primary" id="toResults">See the result →</button></div>
+      </section>
+
+      <!-- ============ RESULTS ============ -->
+      <section class="pane" id="pane-results">
+        <p class="eyebrow">Step four</p>
+        <h2 class="pane-title">The derived decision</h2>
+        <p class="lede">Criteria weights and option scores below are not entered by anyone. They are computed from the pattern of every pairwise judgment, so they expose what the group actually believes once the comparisons are reconciled.</p>
+
+        <div class="card">
+          <h3>Ranking <span class="tag">global priorities</span></h3>
+          <div id="rankList"></div>
+        </div>
+
+        <div class="card">
+          <h3>Criteria weights <span class="tag">derived</span></h3>
+          <div id="critWeightBars"></div>
+        </div>
+
+        <div class="card">
+          <h3>Consistency check <span class="tag">trust the model?</span></h3>
+          <div id="allConsistency"></div>
+          <p class="note">A consistency ratio under 0.10 means the judgments hold together well enough to rely on. Above it, revisit the flagged comparison rather than overriding the math.</p>
+        </div>
+
+        <div class="card">
+          <h3>Sensitivity <span class="tag">what if priorities shifted</span></h3>
+          <p class="note" style="margin-top:0">Drag a criterion's weight to test how robust the winner is. If the top option survives a reasonable shift, the group can commit with confidence. The bars renormalise automatically.</p>
+          <div id="sensSliders"></div>
+          <div class="btnrow"><button class="btn ghost" id="resetSens">Reset to derived weights</button></div>
+        </div>
+      </section>
+
+      <!-- ============ GUIDE ============ -->
+      <section class="pane" id="pane-guide">
+        <p class="eyebrow">Step five</p>
+        <h2 class="pane-title">How the instrument works</h2>
+        <div class="prose">
+          <p>The Analytic Hierarchy Process breaks a hard choice into a tree, gathers human judgment as simple two-at-a-time comparisons, and lets linear algebra turn those comparisons into weights. Its real gift is not the ranking. It is that it measures how consistent your own judgments are and shows you where they contradict each other.</p>
+
+          <h3>The four moves</h3>
+          <div class="step"><div class="k">01</div><div class="body"><b>Structure.</b> State one goal. List the criteria that matter and the options on the table. To move fast, load a template or describe the decision and let the assistant suggest a structure you can edit. The 3D tree on the left is this hierarchy made visible.</div></div>
+          <div class="step"><div class="k">02</div><div class="body"><b>Weigh criteria.</b> Compare criteria two at a time using the balance beam. The beam tilts toward the heavier criterion. You answer many small questions instead of one impossible one.</div></div>
+          <div class="step"><div class="k">03</div><div class="body"><b>Score options.</b> For each criterion in turn, compare the options against each other on that criterion only.</div></div>
+          <div class="step"><div class="k">04</div><div class="body"><b>Synthesise.</b> Each option's global score is the sum across criteria of (criterion weight × option score on that criterion). The model does this for you.</div></div>
+
+          <h3>The scale of judgment</h3>
+          <p>Saaty's nine-point scale turns words into numbers. Tip the beam to the matching strength.</p>
+          <table class="scale-table">
+            <tr><td>1</td><td>Equal</td><td>Both contribute the same</td></tr>
+            <tr><td>3</td><td>Moderate</td><td>One is slightly favoured</td></tr>
+            <tr><td>5</td><td>Strong</td><td>One is clearly favoured</td></tr>
+            <tr><td>7</td><td>Very strong</td><td>Favoured and demonstrated in practice</td></tr>
+            <tr><td>9</td><td>Extreme</td><td>The strongest possible difference</td></tr>
+            <tr><td>2·4·6·8</td><td>In between</td><td>Compromise values</td></tr>
+          </table>
+
+          <h3>What consistency really measures</h3>
+          <p>If you say coffee beats tea, and tea beats water, you should not also say water beats coffee. That loop is the intuition. What AHP actually measures is stronger than that ordering: it checks whether your judgments agree in <em>scale</em>, so that if coffee is 2x tea and tea is 3x water, coffee should be about 6x water. It computes the principal eigenvector of your comparison matrix to get the weights, then measures how far your judgments drift from that perfect consistency as a <strong>consistency ratio</strong>.</p>
+          <ul>
+            <li><strong>Under 0.10</strong> — coherent enough to trust.</li>
+            <li><strong>0.10 to 0.20</strong> — usable, but worth revisiting the flagged pair.</li>
+            <li><strong>Over 0.20</strong> — the judgments are contradicting themselves. The instrument names the single comparison most responsible and suggests the value that would resolve it.</li>
+          </ul>
+          <div class="callout"><b>The point is not to score a perfect zero.</b> A little inconsistency is human and even healthy. A high ratio is a signal that the group has a genuine disagreement or a fuzzy criterion hiding underneath the numbers. That conversation is the value.</div>
+
+          <h3>When you need the Analytic Network Process instead</h3>
+          <p>AHP assumes the criteria are independent. Often they are not. Reputation lifts sales, sales fund reputation. Cost depends on quality, quality depends on the budget you set. When criteria feed back into each other, or options influence the criteria, a strict top-down tree distorts the answer.</p>
+          <p>The <strong>Analytic Network Process</strong> generalises AHP. It replaces the tree with a network where any element can influence any other, captures those influences in a <strong>supermatrix</strong>, and raises that matrix to powers until the feedback loops settle into stable weights. Use AHP when the criteria stand alone. Reach for ANP when the honest answer to "does this depend on that" is yes. This instrument models AHP. If your map of the decision starts growing arrows that point back on themselves, that is the signal to graduate to ANP.</p>
+        </div>
+      </section>
+
+      <!-- ============ FACILITATION ============ -->
+      <section class="pane" id="pane-facil">
+        <p class="eyebrow">For the facilitator</p>
+        <h2 class="pane-title">Running the session</h2>
+        <div class="prose">
+          <p>Your job is not to supply answers. It is to keep the comparisons honest, keep the loudest voice from setting every weight, and turn each spike of inconsistency into a real conversation. The model handles the math. You handle the room.</p>
+
+          <h3>Before the room arrives</h3>
+          <ul>
+            <li>Enter the goal, criteria, and options yourself, agreed with the sponsor in advance. Walking in with a blank structure burns the first twenty minutes on wording.</li>
+            <li>Keep criteria to between four and seven. More than seven and the pairwise count balloons and attention drops.</li>
+            <li>Load the example once so the group sees a finished model, then reset to neutral before live judgments begin.</li>
+            <li>Decide your elicitation method up front. Either poll the group per comparison and enter the consensus, or take a show of hands, or let a sub-group own each criterion.</li>
+          </ul>
+
+          <h3>A ninety minute arc</h3>
+          <div class="timeline-row"><div class="time">0–10</div><div class="what"><b>Frame</b><span>Restate the goal in one sentence. Confirm the criteria and options on screen. Resolve any "that is really two things" splits now, not later.</span></div></div>
+          <div class="timeline-row"><div class="time">10–15</div><div class="what"><b>Teach the beam</b><span>Demonstrate one comparison. Show that tilting left favours the left criterion, and that 3 means moderate, 9 means extreme. Thirty seconds of this saves confusion later.</span></div></div>
+          <div class="timeline-row"><div class="time">15–40</div><div class="what"><b>Weigh criteria</b><span>Work through every criteria pair. For each, ask the question aloud, gather the room, enter one judgment. Watch the consistency card. If it reddens, pause and discuss before moving on.</span></div></div>
+          <div class="timeline-row"><div class="time">40–70</div><div class="what"><b>Score options</b><span>Take one criterion at a time. This is where evidence enters. Ask people to cite a fact for any strong tilt. Move criterion by criterion through the tabs.</span></div></div>
+          <div class="timeline-row"><div class="time">70–85</div><div class="what"><b>Read the result</b><span>Reveal the ranking. Resist the urge to react to the winner. Walk the criteria weights first so the group sees why the winner won.</span></div></div>
+          <div class="timeline-row"><div class="time">85–90</div><div class="what"><b>Stress test</b><span>Use the sensitivity sliders live. "If cost mattered half as much, does the answer hold?" A winner that survives the shake is a decision the group can defend.</span></div></div>
+
+          <h3>Handling the moments that come up</h3>
+          <div class="callout"><b>The consistency card turns red.</b> Do not just apply the suggested fix. Read the flagged pair aloud. Usually it means two people were picturing different things, or a criterion means different things to different people. Name that, then re-judge.</div>
+          <div class="callout"><b>One person dominates every comparison.</b> Switch to silent polling for a few rounds. Ask each person for their ratio before anyone speaks, then combine the numbers with the geometric mean, multiply them together and take the root, and round to the nearest point on the scale. The geometric mean is the mathematically sound way to merge AHP judgments because it preserves the reciprocal relationship, and it stops the senior voice from setting the number on its own.</div>
+          <div class="callout"><b>"The model picked the wrong answer."</b> Good. That reaction is information. Either a judgment does not reflect real belief, so fix the judgment, or the group's gut is reacting to something not yet in the criteria. Add the missing criterion rather than overriding the math.</div>
+          <div class="callout"><b>The group wants to skip pairwise and just rate everything.</b> Remind them that direct rating is exactly what hides inconsistency. The two-at-a-time discipline is the whole point. It is slower because it is catching the contradictions a rating scale would bury.</div>
+
+          <h3>Closing the session</h3>
+          <ul>
+            <li>State the result as "the model derived" not "the model decided." The group owns the call.</li>
+            <li>Record the final consistency ratios alongside the ranking. They are the audit trail for why this decision was sound.</li>
+            <li>If any criterion clearly depends on another, note it for a follow-up. That is the flag that the next version of this decision may need the Analytic Network Process.</li>
+          </ul>
+        </div>
+      </section>
+
+      <div class="footnote">Method: T. L. Saaty, Analytic Hierarchy Process · weights via principal eigenvector · consistency via the random index</div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ============================================================
+   AHP CORE MATH
+   ============================================================ */
+const RI = [0,0,0,0.58,0.90,1.12,1.24,1.32,1.41,1.45,1.49,1.51,1.48,1.56,1.57,1.59];
+
+function principalEigen(A){
+  const n = A.length;
+  if(n===0) return {w:[],lambda:0,CI:0,CR:0,n:0};
+  if(n===1) return {w:[1],lambda:1,CI:0,CR:0,n:1};
+  let w = new Array(n).fill(1/n);
+  for(let it=0; it<400; it++){
+    const Aw = new Array(n).fill(0);
+    for(let i=0;i<n;i++) for(let j=0;j<n;j++) Aw[i]+=A[i][j]*w[j];
+    const s = Aw.reduce((a,b)=>a+b,0) || 1;
+    const wn = Aw.map(x=>x/s);
+    let diff=0; for(let i=0;i<n;i++) diff+=Math.abs(wn[i]-w[i]);
+    w = wn;
+    if(diff<1e-12) break;
+  }
+  // lambda max
+  const Aw = new Array(n).fill(0);
+  for(let i=0;i<n;i++) for(let j=0;j<n;j++) Aw[i]+=A[i][j]*w[j];
+  let lambda=0; for(let i=0;i<n;i++) lambda += Aw[i]/(w[i]||1e-9);
+  lambda/=n;
+  const CI = n>2 ? (lambda-n)/(n-1) : 0;
+  const ri = RI[n] || 1.59;
+  const CR = (n>2 && ri>0) ? CI/ri : 0;
+  return {w, lambda, CI, CR, n};
+}
+
+// find the single most inconsistent comparison: max |ln(a_ij) - ln(w_i/w_j)|
+function findHotspot(A, w){
+  const n=A.length; let best=null;
+  for(let i=0;i<n;i++) for(let j=i+1;j<n;j++){
+    const ideal = w[i]/w[j];
+    const dev = Math.abs(Math.log(A[i][j]) - Math.log(ideal));
+    if(!best || dev>best.dev) best={i,j,aij:A[i][j],ideal,dev};
+  }
+  return best;
+}
+
+/* ============================================================
+   STATE
+   ============================================================ */
+const PALETTE = ['#46c2b4','#9b8cff','#f2c45a','#e8915a','#5aa9e8','#d56fb0','#7fd06a'];
+
+const state = {
+  goal:'Select the best vendor',
+  criteria:['Cost','Quality','Support','Scalability'],
+  options:['Vendor A','Vendor B','Vendor C'],
+  critM:null,      // n x n
+  optM:[],         // per criterion: m x m
+  sens:null,       // sensitivity override weights, or null
+  why:{},          // optional name -> rationale, from templates/assistant
+  view:'space',    // 'space' (decision space) or 'tree' (hierarchy)
+  axisX:null,      // criterion index on the floor "across" axis
+  axisY:null       // criterion index on the floor "depth" axis
+};
+
+function identity(n){
+  return Array.from({length:n},(_,i)=>Array.from({length:n},(_,j)=>i===j?1:1));
+}
+function rebuildMatrices(){
+  const n=state.criteria.length, m=state.options.length;
+  state.critM = resize(state.critM, n);
+  // ensure one option-matrix per criterion
+  const newOpt=[];
+  for(let c=0;c<n;c++) newOpt.push(resize(state.optM[c], m));
+  state.optM=newOpt;
+  state.sens=null;
+}
+function resize(M, size){
+  const out = Array.from({length:size},(_,i)=>Array.from({length:size},(_,j)=>{
+    if(M && i<M.length && j<M.length) return M[i][j];
+    return 1;
+  }));
+  return out;
+}
+
+/* slider integer s in [-8,8]  ->  a_ij (i=left favoured when s>0) */
+function sToRatio(s){ return s>=0 ? (s+1) : 1/(Math.abs(s)+1); }
+function ratioToS(a){ return a>=1 ? Math.round(a-1) : -Math.round(1/a-1); }
+function setPair(M,i,j,s){ const a=sToRatio(s); M[i][j]=a; M[j][i]=1/a; }
+const INTENSITY_WORD=['Equal','Equal to moderate','Moderate','Moderate to strong','Strong','Strong to very strong','Very strong','Very to extreme','Extreme'];
+function verdict(s){
+  const t=Math.abs(s); // 0..8 -> intensity t+1
+  return INTENSITY_WORD[t]||'Equal';
+}
+
+/* ============================================================
+   DERIVED RESULTS
+   ============================================================ */
+function compute(){
+  const crit = principalEigen(state.critM);
+  const opts = state.optM.map(M=>principalEigen(M));
+  const m = state.options.length;
+  const critW = state.sens || crit.w;
+  const global = new Array(m).fill(0);
+  for(let c=0;c<state.criteria.length;c++)
+    for(let i=0;i<m;i++)
+      global[i]+= (critW[c]||0) * (opts[c].w[i]||0);
+  const s=global.reduce((a,b)=>a+b,0)||1;
+  const globalN=global.map(x=>x/s);
+  return {crit, opts, critW, global:globalN};
+}
+
+/* ============================================================
+   DOM HELPERS
+   ============================================================ */
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+function el(tag,cls,html){const e=document.createElement(tag);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e;}
+
+/* ---------- tabs ---------- */
+$$('#tabnav button').forEach(b=>b.addEventListener('click',()=>showPane(b.dataset.pane)));
+function showPane(p){
+  $$('#tabnav button').forEach(b=>b.classList.toggle('active',b.dataset.pane===p));
+  $$('.pane').forEach(s=>s.classList.toggle('active',s.id==='pane-'+p));
+  if(p==='criteria') renderCritPairs();
+  if(p==='options') renderOptions();
+  if(p==='results') renderResults();
+}
+
+/* ---------- structure editors ---------- */
+function itemBlock(name,i,isCrit){
+  const wrap=el('div','item');
+  const row=el('div','item-row');
+  if(isCrit) row.innerHTML=`<span class="swatch" style="background:${PALETTE[i%PALETTE.length]}"></span>`;
+  else row.innerHTML=`<span class="grip">${i+1}</span>`;
+  const inp=el('input'); inp.value=name; inp.spellcheck=false;
+  inp.addEventListener('input',()=>{ const arr=isCrit?state.criteria:state.options; arr[i]=inp.value; refreshScene(); });
+  const del=el('button','iconbtn','×'); del.title='Remove';
+  del.addEventListener('click',()=>{ const arr=isCrit?state.criteria:state.options; if(arr.length<=2)return; arr.splice(i,1); rebuildMatrices(); renderLists(); refreshScene(); });
+  row.append(inp,del); wrap.append(row);
+  const why=state.why[name];
+  if(why) wrap.append(el('div','why-line',esc(why)));
+  return wrap;
+}
+function renderLists(){
+  const cl=$('#critList'); cl.innerHTML='';
+  state.criteria.forEach((c,i)=>cl.append(itemBlock(c,i,true)));
+  const ol=$('#optList'); ol.innerHTML='';
+  state.options.forEach((o,i)=>ol.append(itemBlock(o,i,false)));
+}
+$('#addCrit').addEventListener('click',()=>{ if(state.criteria.length>=9)return; state.criteria.push('New criterion'); rebuildMatrices(); renderLists(); refreshScene(); });
+$('#addOpt').addEventListener('click',()=>{ if(state.options.length>=9)return; state.options.push('New option'); rebuildMatrices(); renderLists(); refreshScene(); });
+$('#goalInput').addEventListener('input',e=>{state.goal=e.target.value;refreshScene();});
+
+/* ---------- assistance: templates + AI ---------- */
+const TEMPLATES={
+  'Vendor selection':{goal:'Select the best vendor',
+    criteria:[['Cost','Total price plus ongoing fees over the contract'],['Quality','Reliability of the product or service delivered'],['Support','Responsiveness and depth of help when issues arise'],['Scalability','Room to grow as our needs expand'],['Integration','Fit with the systems we already run']],
+    options:[['Vendor A',''],['Vendor B',''],['Vendor C','']]},
+  'Hire a candidate':{goal:'Choose the candidate to hire',
+    criteria:[['Capability','Core skills the role demands today'],['Experience','Track record in comparable situations'],['Culture fit','Alignment with how the team works'],['Communication','Clarity and collaboration with others'],['Growth potential','Capacity to take on more over time']],
+    options:[['Candidate 1',''],['Candidate 2',''],['Candidate 3','']]},
+  'Choose a location':{goal:'Select a site for the new location',
+    criteria:[['Cost','Lease, build-out, and running costs'],['Accessibility','Ease of reach for staff and customers'],['Talent pool','Availability of the people we need'],['Market proximity','Closeness to the customers we serve'],['Growth room','Capacity to expand on site'],['Risk','Exposure to disruption or regulation']],
+    options:[['Site A',''],['Site B',''],['Site C','']]},
+  'Prioritize initiatives':{goal:'Choose which initiative to fund first',
+    criteria:[['Impact','Size of the benefit if it succeeds'],['Effort','Resources and time required'],['Strategic fit','Alignment with our direction'],['Risk','Likelihood and cost of failure'],['Time to value','How soon benefits arrive']],
+    options:[['Initiative A',''],['Initiative B',''],['Initiative C','']]},
+  'Select a platform':{goal:'Select a technology platform',
+    criteria:[['Functionality','Coverage of the features we need'],['Total cost','Licensing plus the cost to own and run it'],['Ease of use','Adoption effort for our people'],['Integration','Connection to our existing stack'],['Vendor stability','Confidence the provider will endure'],['Security','Protection of our data and access']],
+    options:[['Platform A',''],['Platform B',''],['Platform C','']]},
+  'Choose a strategy':{goal:'Choose the strategic direction',
+    criteria:[['Expected return','Upside if the strategy plays out'],['Risk','Downside and uncertainty involved'],['Feasibility','Whether we can actually execute it'],['Speed','How quickly it can move'],['Reversibility','How easily we can change course later']],
+    options:[['Strategy A',''],['Strategy B',''],['Strategy C','']]}
+};
+function renderTemplates(){
+  const row=$('#tmplRow'); row.innerHTML='';
+  Object.keys(TEMPLATES).forEach(k=>{
+    const b=el('button','tmpl',esc(k));
+    b.addEventListener('click',()=>applyTemplate(k));
+    row.append(b);
+  });
+}
+function applyTemplate(key){
+  const t=TEMPLATES[key];
+  state.goal=t.goal; $('#goalInput').value=t.goal; $('#assistGoal').value=t.goal;
+  state.criteria=t.criteria.map(c=>c[0]);
+  state.options=t.options.map(o=>o[0]);
+  state.why={};
+  t.criteria.forEach(c=>{ if(c[1]) state.why[c[0]]=c[1]; });
+  rebuildMatrices(); renderLists(); refreshScene();
+  $('#suggWrap').classList.remove('on'); $('#suggWrap').innerHTML='';
+  setStatus(`Loaded the "${key}" starter. Edit anything below, then begin weighing.`);
+}
+
+function setStatus(msg,isErr){ const s=$('#assistStatus'); if(!s)return; s.textContent=msg||''; s.classList.toggle('err',!!isErr); }
+
+async function callClaude(prompt){
+  const res=await fetch("https://api.anthropic.com/v1/messages",{
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:1000, messages:[{role:"user",content:prompt}] })
+  });
+  if(!res.ok) throw new Error('http '+res.status);
+  const data=await res.json();
+  return (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+}
+function parseJSON(text){
+  let t=(text||'').trim().replace(/^```json/i,'').replace(/^```/,'').replace(/```$/,'').trim();
+  try{ return JSON.parse(t); }catch(e){}
+  const m=t.match(/\{[\s\S]*\}/);
+  if(m){ try{ return JSON.parse(m[0]); }catch(e){} }
+  return null;
+}
+function buildPrompt(mode,goal){
+  if(mode==='moreCriteria') return `You are structuring a decision for the Analytic Hierarchy Process.
+Decision goal: "${goal}".
+Existing criteria: ${state.criteria.join(', ')||'(none)'}.
+Propose 3 to 5 ADDITIONAL decision criteria that are independent of and do not overlap with the existing ones. One to three words each, with a one-sentence rationale.
+Return ONLY valid JSON, no markdown, no commentary:
+{"criteria":[{"name":"","why":""}]}`;
+  if(mode==='options') return `You are structuring a decision for the Analytic Hierarchy Process.
+Decision goal: "${goal}".
+Criteria: ${state.criteria.join(', ')||'(none)'}.
+Propose 3 to 4 concrete candidate options to evaluate against these criteria. One to four words each, with a one-sentence rationale.
+Return ONLY valid JSON, no markdown, no commentary:
+{"options":[{"name":"","why":""}]}`;
+  return `You are structuring a decision for the Analytic Hierarchy Process (AHP).
+Decision goal: "${goal}".
+Propose decision criteria and candidate options for this decision.
+Rules: criteria must be independent and non-overlapping, one to three words each, 4 to 6 of them. Options are concrete choices, one to four words each, 3 to 4 of them. Give every item a one-sentence rationale.
+Return ONLY valid JSON, no markdown fences, no commentary, exactly this shape:
+{"goal":"a sharper one-line goal","criteria":[{"name":"","why":""}],"options":[{"name":"","why":""}]}`;
+}
+
+let suggestions={goal:null,criteria:[],options:[]};
+async function assist(mode){
+  const goal=($('#assistGoal').value||state.goal||'').trim();
+  if(!goal){ setStatus('Describe the decision first, or pick a template.',true); return; }
+  state.goal=goal; $('#goalInput').value=goal;
+  $('#assistSpin').classList.add('on'); setStatus('Thinking…');
+  $$('#assistMain .btn').forEach(b=>b.disabled=true);
+  try{
+    const data=parseJSON(await callClaude(buildPrompt(mode,goal)));
+    if(!data) throw new Error('parse');
+    suggestions={
+      goal: mode==='full' ? (data.goal||null) : null,
+      criteria:(data.criteria||[]).map(c=>({name:(c.name||'').trim(),why:(c.why||'').trim(),on:true})).filter(c=>c.name),
+      options:(data.options||[]).map(c=>({name:(c.name||'').trim(),why:(c.why||'').trim(),on:true})).filter(c=>c.name)
+    };
+    if(!suggestions.criteria.length && !suggestions.options.length && !suggestions.goal) throw new Error('empty');
+    renderSuggestions();
+    setStatus('Tick the ones you want, then add them.');
+  }catch(e){
+    setStatus('Could not reach the AI helper. Pick a template above or type items by hand. The AI helper runs when this is opened inside Claude.',true);
+  }finally{
+    $('#assistSpin').classList.remove('on');
+    $$('#assistMain .btn').forEach(b=>b.disabled=false);
+  }
+}
+function suggRow(item){
+  const r=el('div','sugg on');
+  r.innerHTML=`<span class="chk"></span><div class="body"><div class="nm">${esc(item.name)}</div>${item.why?`<div class="why">${esc(item.why)}</div>`:''}</div>`;
+  r.addEventListener('click',()=>{ r.classList.toggle('on'); item.on=r.classList.contains('on'); });
+  return r;
+}
+function renderSuggestions(){
+  const wrap=$('#suggWrap'); wrap.innerHTML='';
+  if(suggestions.goal){
+    const g=el('div','sugg-group'); g.innerHTML='<h4>Refined goal</h4>';
+    const item={name:suggestions.goal,why:'Replaces the current goal',on:true};
+    suggestions._goalItem=item; g.append(suggRow(item)); wrap.append(g);
+  }
+  if(suggestions.criteria.length){
+    const g=el('div','sugg-group'); g.innerHTML='<h4>Suggested criteria</h4>';
+    suggestions.criteria.forEach(c=>g.append(suggRow(c))); wrap.append(g);
+  }
+  if(suggestions.options.length){
+    const g=el('div','sugg-group'); g.innerHTML='<h4>Suggested options</h4>';
+    suggestions.options.forEach(o=>g.append(suggRow(o))); wrap.append(g);
+  }
+  const act=el('div','assist-actions');
+  act.innerHTML=`<button class="btn primary" id="addSelected">Add selected to model</button><button class="btn ghost" id="dismissSugg">Dismiss</button>`;
+  wrap.append(act);
+  wrap.classList.add('on');
+  $('#addSelected').addEventListener('click',addSelected);
+  $('#dismissSugg').addEventListener('click',()=>{ wrap.classList.remove('on'); wrap.innerHTML=''; setStatus(''); });
+}
+function hasItem(arr,name){ return arr.some(x=>x.trim().toLowerCase()===name.trim().toLowerCase()); }
+function addSelected(){
+  let added=0;
+  if(suggestions._goalItem && suggestions._goalItem.on){ state.goal=suggestions.goal; $('#goalInput').value=suggestions.goal; }
+  suggestions.criteria.forEach(c=>{ if(c.on && !hasItem(state.criteria,c.name) && state.criteria.length<9){ state.criteria.push(c.name); if(c.why)state.why[c.name]=c.why; added++; } });
+  suggestions.options.forEach(o=>{ if(o.on && !hasItem(state.options,o.name) && state.options.length<9){ state.options.push(o.name); if(o.why)state.why[o.name]=o.why; added++; } });
+  rebuildMatrices(); renderLists(); refreshScene();
+  $('#suggWrap').classList.remove('on'); $('#suggWrap').innerHTML='';
+  setStatus(added? `Added ${added} item${added===1?'':'s'}. Adjust below, or begin weighing.` : 'Nothing new to add — those items are already in the model.');
+}
+function initAssist(){
+  renderTemplates();
+  $('#assistGoal').value=state.goal||'';
+  $('#assistFull').addEventListener('click',()=>assist('full'));
+  $('#assistMoreCrit').addEventListener('click',()=>assist('moreCriteria'));
+  $('#assistOpts').addEventListener('click',()=>assist('options'));
+}
+
+$('#toCriteria').addEventListener('click',()=>showPane('criteria'));
+$('#toOptions').addEventListener('click',()=>showPane('options'));
+$('#toResults').addEventListener('click',()=>showPane('results'));
+
+/* ---------- balance beam svg ---------- */
+function beamSVG(s){
+  // s in [-8,8]; tilt angle proportional
+  const ang = -(s/8)*16; // degrees, positive s tilts left side down
+  const cx=150, cy=30, len=120;
+  const rad=ang*Math.PI/180;
+  const x1=cx-len*Math.cos(rad), y1=cy+len*Math.sin(rad);
+  const x2=cx+len*Math.cos(rad), y2=cy-len*Math.sin(rad);
+  const lw = 7 + (s>0? Math.abs(s):0)*1.1;
+  const rw = 7 + (s<0? Math.abs(s):0)*1.1;
+  return `<svg class="beam-svg" viewBox="0 0 300 60" preserveAspectRatio="xMidYMid meet">
+    <line x1="150" y1="30" x2="150" y2="52" stroke="#26314c" stroke-width="3" stroke-linecap="round"/>
+    <polygon points="142,54 158,54 150,44" fill="#26314c"/>
+    <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#d9a441" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="150" cy="30" r="3.5" fill="#d9a441"/>
+    <g>
+      <line x1="${x1}" y1="${y1}" x2="${x1}" y2="${y1+8}" stroke="#46c2b4" stroke-width="1.4"/>
+      <circle cx="${x1}" cy="${y1+8+rwOff(lw)}" r="${lw}" fill="rgba(70,194,180,.18)" stroke="#46c2b4" stroke-width="1.6"/>
+    </g>
+    <g>
+      <line x1="${x2}" y1="${y2}" x2="${x2}" y2="${y2+8}" stroke="#9b8cff" stroke-width="1.4"/>
+      <circle cx="${x2}" cy="${y2+8+rwOff(rw)}" r="${rw}" fill="rgba(155,140,255,.18)" stroke="#9b8cff" stroke-width="1.6"/>
+    </g>
+  </svg>`;
+}
+function rwOff(r){return r;}
+
+/* ---------- pairwise renderers ---------- */
+function renderPairBlock(container, M, labels, colorL, colorR, onChange){
+  container.innerHTML='';
+  const n=labels.length;
+  for(let i=0;i<n;i++) for(let j=i+1;j<n;j++){
+    const s0=ratioToS(M[i][j]);
+    const card=el('div','pair');
+    card.innerHTML=`
+      <div class="ends"><div class="end l">${esc(labels[i])}</div><div class="end r">${esc(labels[j])}</div></div>
+      <div class="beam-wrap"></div>
+      <input type="range" min="-8" max="8" step="1" value="${s0}">
+      <div class="verdict"><span class="word"></span><span class="ratio"></span></div>`;
+    const beam=card.querySelector('.beam-wrap');
+    const range=card.querySelector('input');
+    const word=card.querySelector('.word');
+    const ratio=card.querySelector('.ratio');
+    const paint=(s)=>{
+      beam.innerHTML=beamSVG(s);
+      const a=sToRatio(s);
+      if(s===0){ word.textContent='Equal — both matter the same'; ratio.textContent='1 : 1'; }
+      else{
+        const fav = s>0?labels[i]:labels[j];
+        word.innerHTML=`<b style="color:${s>0?colorL:colorR}">${esc(fav)}</b> · ${verdict(s)}`;
+        const t=Math.abs(s)+1;
+        ratio.textContent = s>0? `${t} : 1` : `1 : ${t}`;
+      }
+    };
+    range.addEventListener('input',()=>{ const s=+range.value; setPair(M,i,j,s); paint(s); onChange(); });
+    paint(s0);
+    container.append(card);
+  }
+}
+function esc(t){return String(t).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+
+function renderCritPairs(){
+  renderPairBlock($('#critPairs'), state.critM, state.criteria, '#46c2b4','#46c2b4', ()=>{state.sens=null;renderCritConsistency();refreshScene();});
+  renderCritConsistency();
+}
+function renderCritConsistency(){
+  const e=principalEigen(state.critM);
+  $('#critConsistency').innerHTML='<h3>Consistency of these weights <span class="tag">CR</span></h3>'+consistencyHTML(e,state.critM,state.criteria,'crit',-1);
+  wireHotspot($('#critConsistency'), state.critM, ()=>{renderCritPairs();});
+}
+
+let activeCrit=0;
+function renderOptions(){
+  const tabs=$('#critTabs'); tabs.innerHTML='';
+  const c=compute();
+  state.criteria.forEach((cn,i)=>{
+    const b=el('button',i===activeCrit?'active':'',`${esc(cn)}<span class="w">${(c.crit.w[i]*100).toFixed(0)}%</span>`);
+    b.addEventListener('click',()=>{activeCrit=i;renderOptions();});
+    tabs.append(b);
+  });
+  renderPairBlock($('#optPairs'), state.optM[activeCrit], state.options, '#9b8cff','#9b8cff', ()=>{state.sens=null;renderOptConsistency();refreshScene();});
+  renderOptConsistency();
+}
+function renderOptConsistency(){
+  const e=principalEigen(state.optM[activeCrit]);
+  $('#optConsistency').innerHTML=`<h3>Consistency on "${esc(state.criteria[activeCrit])}" <span class="tag">CR</span></h3>`+consistencyHTML(e,state.optM[activeCrit],state.options,'opt',activeCrit);
+  wireHotspot($('#optConsistency'), state.optM[activeCrit], ()=>{renderOptions();});
+}
+
+function crColor(cr){ return cr<0.10?'var(--good)':cr<0.20?'var(--warn)':'var(--bad)'; }
+function crLabel(cr){ return cr<0.10?'Coherent':cr<0.20?'Usable — review the flag':'Inconsistent — resolve before trusting'; }
+
+function consistencyHTML(e, M, labels, kind, ci){
+  if(e.n<=2) return `<div class="cr-meter"><span class="cr-dotbig" style="background:var(--good)"></span><span class="lab">Only one comparison — consistency is automatic.</span></div>`;
+  const col=crColor(e.CR);
+  let html=`<div class="cr-meter">
+      <span class="cr-dotbig" style="background:${col}"></span>
+      <span class="lab">${crLabel(e.CR)}</span>
+      <span class="num" style="color:${col}">CR ${e.CR.toFixed(3)}</span>
+    </div>`;
+  if(e.CR>=0.10){
+    const h=findHotspot(M,e.w);
+    if(h){
+      const suggestS=ratioToS(h.ideal);
+      html+=`<div class="hotspot" data-i="${h.i}" data-j="${h.j}" data-s="${suggestS}">
+        Most of the inconsistency lives in one judgment:
+        <b>${esc(labels[h.i])}</b> vs <b>${esc(labels[h.j])}</b>.
+        You entered a ratio of <b>${fmtRatio(h.aij)}</b>, but the rest of your judgments imply roughly <b>${fmtRatio(h.ideal)}</b>.
+        <div class="fix"><button class="applyfix">Set it to the consistent value</button></div>
+      </div>`;
+    }
+  }
+  return html;
+}
+function fmtRatio(a){ return a>=1 ? a.toFixed(a<10?1:0)+':1' : '1:'+(1/a).toFixed((1/a)<10?1:0); }
+function wireHotspot(scope, M, rerender){
+  const hs=scope.querySelector('.hotspot'); if(!hs) return;
+  hs.querySelector('.applyfix').addEventListener('click',()=>{
+    const i=+hs.dataset.i, j=+hs.dataset.j, s=+hs.dataset.s;
+    setPair(M,i,j,s); state.sens=null; rerender(); refreshScene();
+  });
+}
+
+/* ---------- results ---------- */
+function buildRankList(){
+  const c=compute();
+  const order=c.global.map((g,i)=>({i,g})).sort((a,b)=>b.g-a.g);
+  const rl=$('#rankList'); rl.innerHTML='';
+  order.forEach((o,pos)=>{
+    const r=el('div','rank'+(pos===0?' win':''));
+    r.innerHTML=`<span class="pos">${pos+1}</span>
+      <span class="nm">${esc(state.options[o.i])} ${pos===0?'<span class="crown">★</span>':''}</span>
+      <span class="sc">${(o.g*100).toFixed(1)}%</span>`;
+    rl.append(r);
+  });
+}
+function renderResults(){
+  const c=compute();
+  buildRankList();
+  // criteria weight bars (always the AHP-derived weights, not the sensitivity overrides)
+  const cb=$('#critWeightBars'); cb.innerHTML='';
+  state.criteria.forEach((cn,i)=>{
+    cb.append(weightBar(cn, c.crit.w[i], PALETTE[i%PALETTE.length]));
+  });
+  // consistency summary
+  const ac=$('#allConsistency'); ac.innerHTML='';
+  ac.append(crLine('Criteria comparison', principalEigen(state.critM)));
+  state.criteria.forEach((cn,i)=> ac.append(crLine('Options · '+cn, c.opts[i])));
+  // sensitivity
+  renderSens(c);
+}
+// light refresh used while dragging sensitivity sliders: never rebuilds the sliders
+function softResultsRefresh(){ buildRankList(); refreshScene(); }
+function weightBar(name,val,color){
+  const w=el('div','wbar');
+  w.innerHTML=`<div class="top"><span class="nm">${esc(name)}</span><span class="val">${(val*100).toFixed(1)}%</span></div>
+    <div class="track"><div class="fill" style="width:${(val*100).toFixed(1)}%;background:${color}"></div></div>`;
+  return w;
+}
+function crLine(label,e){
+  const d=el('div','cr-meter');
+  const col= e.n<=2?'var(--good)':crColor(e.CR);
+  d.innerHTML=`<span class="cr-dotbig" style="background:${col}"></span>
+    <span class="lab">${esc(label)}</span>
+    <span class="num" style="color:${col}">${e.n<=2?'n/a':'CR '+e.CR.toFixed(3)}</span>`;
+  return d;
+}
+function renderSens(c){
+  const base=c.crit.w;
+  const cur=(state.sens||base).slice();
+  const wrap=$('#sensSliders'); wrap.innerHTML='';
+  state.criteria.forEach((cn,i)=>{
+    const row=el('div','sens-row');
+    row.innerHTML=`<div class="top"><span>${esc(cn)}</span><span class="v">${(cur[i]*100).toFixed(0)}%</span></div>
+      <input type="range" min="1" max="99" value="${Math.min(99,Math.max(1,Math.round(cur[i]*100)))}">`;
+    const range=row.querySelector('input'); const v=row.querySelector('.v');
+    range.addEventListener('input',()=>{
+      // dynamic sensitivity: hold this criterion at exactly its slider value,
+      // redistribute the remaining weight across the others in proportion
+      const prev=(state.sens||base).slice();
+      const newW=+range.value/100;
+      const others=prev.reduce((a,w,k)=> k===i ? a : a+w, 0);
+      const scale= others>0 ? (1-newW)/others : 0;
+      state.sens=prev.map((w,k)=> k===i ? newW : w*scale);
+      v.textContent=(newW*100).toFixed(0)+'%';
+      softResultsRefresh();
+    });
+    // on release, rebuild the panel so every thumb and label reflects the renormalised weights
+    range.addEventListener('change',()=>renderSens(compute()));
+    wrap.append(row);
+  });
+}
+$('#resetSens').addEventListener('click',()=>{state.sens=null;renderResults();refreshScene();});
+
+/* ---------- demo data ---------- */
+$('#loadDemo').addEventListener('click',loadDemo);
+$('#resetEqual').addEventListener('click',()=>{rebuildMatrices();renderLists();refreshScene();showPane('setup');});
+function loadDemo(){
+  state.goal='Select the best vendor';
+  state.criteria=['Cost','Quality','Support','Scalability'];
+  state.options=['Vendor A','Vendor B','Vendor C'];
+  state.why={Cost:'Total price plus ongoing fees over the contract',Quality:'Reliability of the product or service delivered',Support:'Responsiveness and depth of help when issues arise',Scalability:'Room to grow as our needs expand'};
+  $('#goalInput').value=state.goal; if($('#assistGoal')) $('#assistGoal').value=state.goal;
+  rebuildMatrices();
+  // criteria judgments: s>0 favours the LEFT item. Target rank: Quality > Cost > Support > Scalability
+  applyJudgments(state.critM,[
+    [0,1,-2],  // Cost vs Quality  -> Quality favoured (1:3)
+    [0,2, 2],  // Cost vs Support  -> Cost favoured (3:1)
+    [0,3, 3],  // Cost vs Scalability -> Cost favoured (4:1)
+    [1,2, 3],  // Quality vs Support -> Quality favoured (4:1)
+    [1,3, 4],  // Quality vs Scalability -> Quality favoured (5:1)
+    [2,3, 1],  // Support vs Scalability -> Support favoured (2:1)
+  ]);
+  // options per criterion, options = [A,B,C]
+  applyJudgments(state.optM[0],[[0,1,2],[0,2,5],[1,2,1]]);    // Cost: A cheapest, then B, then C
+  applyJudgments(state.optM[1],[[0,1,-2],[0,2,-5],[1,2,-1]]); // Quality: C best, then B, then A
+  applyJudgments(state.optM[2],[[0,1,-3],[0,2,-1],[1,2,2]]);  // Support: B best, then C, then A
+  applyJudgments(state.optM[3],[[0,1,-3],[0,2,-2],[1,2,2]]);  // Scalability: B best, then C, then A
+  renderLists(); refreshScene(); showPane('results');
+}
+function applyJudgments(M, list){ list.forEach(([i,j,s])=>{ if(i<M.length&&j<M.length) setPair(M,i,j,s); }); }
+
+/* ============================================================
+   3D SCENE
+   ============================================================ */
+let renderer,scene,camera,group, raf;
+let cam={radius:14,theta:0.85,phi:1.05,target:new THREE.Vector3(0,0.3,0)};
+let autoSpin=false;
+function initScene(){
+  const host=$('#scene');
+  renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.setSize(host.clientWidth,host.clientHeight);
+  host.appendChild(renderer.domElement);
+  scene=new THREE.Scene();
+  camera=new THREE.PerspectiveCamera(45,host.clientWidth/host.clientHeight,0.1,100);
+  const amb=new THREE.AmbientLight(0xffffff,0.65); scene.add(amb);
+  const d1=new THREE.DirectionalLight(0xfff0d0,0.9); d1.position.set(5,8,6); scene.add(d1);
+  const d2=new THREE.DirectionalLight(0x6fa8ff,0.5); d2.position.set(-6,3,-4); scene.add(d2);
+  group=new THREE.Group(); scene.add(group);
+  // controls
+  let dragging=false,px=0,py=0;
+  const cv=renderer.domElement;
+  cv.addEventListener('pointerdown',e=>{dragging=true;px=e.clientX;py=e.clientY;autoSpin=false;$('#spinBtn').classList.remove('on');cv.setPointerCapture(e.pointerId);});
+  cv.addEventListener('pointermove',e=>{ if(!dragging)return; cam.theta-=(e.clientX-px)*0.008; cam.phi-=(e.clientY-py)*0.008; cam.phi=Math.max(0.25,Math.min(Math.PI-0.25,cam.phi)); px=e.clientX;py=e.clientY;});
+  cv.addEventListener('pointerup',e=>{dragging=false;});
+  cv.addEventListener('wheel',e=>{e.preventDefault();cam.radius*=(1+Math.sign(e.deltaY)*0.08);cam.radius=Math.max(6,Math.min(26,cam.radius));},{passive:false});
+  window.addEventListener('resize',onResize);
+  $('#spinBtn').addEventListener('click',()=>{autoSpin=!autoSpin;$('#spinBtn').classList.toggle('on',autoSpin);});
+  $('#resetView').addEventListener('click',()=>{cam={radius:14,theta:0.85,phi:1.05,target:new THREE.Vector3(0,0.3,0)};});
+  $$('#viewSeg button').forEach(b=>b.addEventListener('click',()=>{ state.view=b.dataset.view; refreshScene(); }));
+  $('#axisXSel').addEventListener('change',e=>{ state.axisX=+e.target.value; if(state.axisX===state.axisY){ const n=state.criteria.length; state.axisY=[...Array(n).keys()].find(k=>k!==state.axisX) ?? state.axisY; } refreshScene(); });
+  $('#axisYSel').addEventListener('change',e=>{ state.axisY=+e.target.value; if(state.axisY===state.axisX){ const n=state.criteria.length; state.axisX=[...Array(n).keys()].find(k=>k!==state.axisY) ?? state.axisX; } refreshScene(); });
+  refreshScene();
+  animate();
+}
+function onResize(){
+  const host=$('#scene'); if(!renderer)return;
+  renderer.setSize(host.clientWidth,host.clientHeight);
+  camera.aspect=host.clientWidth/host.clientHeight; camera.updateProjectionMatrix();
+}
+
+function makeLabel(text,color){
+  const pad=8, fs=46;
+  const cvs=document.createElement('canvas');
+  const ctx=cvs.getContext('2d');
+  ctx.font=`600 ${fs}px 'Space Grotesk', sans-serif`;
+  const w=Math.ceil(ctx.measureText(text).width)+pad*2;
+  const h=fs+pad*2;
+  cvs.width=w; cvs.height=h;
+  ctx.font=`600 ${fs}px 'Space Grotesk', sans-serif`;
+  ctx.fillStyle='rgba(10,14,26,.0)'; ctx.fillRect(0,0,w,h);
+  ctx.fillStyle=color||'#e7ecf6'; ctx.textBaseline='middle'; ctx.textAlign='center';
+  ctx.fillText(text,w/2,h/2);
+  const tex=new THREE.CanvasTexture(cvs); tex.minFilter=THREE.LinearFilter;
+  const mat=new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false});
+  const sp=new THREE.Sprite(mat);
+  sp.scale.set(w/h*0.62,0.62,1);
+  return sp;
+}
+function nodeMesh(radius,color,emissive){
+  const geo=new THREE.SphereGeometry(radius,32,24);
+  const mat=new THREE.MeshStandardMaterial({color,emissive:emissive||color,emissiveIntensity:0.35,roughness:0.35,metalness:0.25});
+  return new THREE.Mesh(geo,mat);
+}
+function edge(a,b,color,opacity,thick){
+  if(thick>0.012){
+    // cylinder for thick edges
+    const dir=new THREE.Vector3().subVectors(b,a); const len=dir.length();
+    const geo=new THREE.CylinderGeometry(thick,thick,len,8);
+    const mat=new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:0.3,transparent:true,opacity,roughness:0.5});
+    const mesh=new THREE.Mesh(geo,mat);
+    mesh.position.copy(a).add(b).multiplyScalar(0.5);
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir.clone().normalize());
+    return mesh;
+  }else{
+    const g=new THREE.BufferGeometry().setFromPoints([a,b]);
+    const m=new THREE.LineBasicMaterial({color,transparent:true,opacity});
+    return new THREE.Line(g,m);
+  }
+}
+
+function refreshScene(){
+  if(!group) return;
+  while(group.children.length) group.remove(group.children[0]);
+  const res=compute();
+  if(state.view==='tree') buildTreeScene(res);
+  else buildSpaceScene(res);
+  updateSceneChrome(res);
+}
+
+/* ----- shared 3D helpers for the decision space ----- */
+function axisArrow(a,b,color){
+  const g=new THREE.Group();
+  const dir=new THREE.Vector3().subVectors(b,a); const len=dir.length();
+  const q=new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0),dir.clone().normalize());
+  const cyl=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,len,8),
+    new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:0.4,roughness:0.5}));
+  cyl.position.copy(a).add(b).multiplyScalar(0.5); cyl.quaternion.copy(q); g.add(cyl);
+  const cone=new THREE.Mesh(new THREE.ConeGeometry(0.1,0.28,14),
+    new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:0.4,roughness:0.5}));
+  cone.position.copy(b); cone.quaternion.copy(q); g.add(cone);
+  return g;
+}
+function scoreColor(t){ // t in 0..1 -> violet (low) to teal (high)
+  const a=[0x6b,0x5c,0xd6], b=[0x46,0xc2,0xb4];
+  const r=Math.round(a[0]+(b[0]-a[0])*t), gg=Math.round(a[1]+(b[1]-a[1])*t), bl=Math.round(a[2]+(b[2]-a[2])*t);
+  return `rgb(${r},${gg},${bl})`;
+}
+
+function buildSpaceScene(res){
+  const n=state.criteria.length, m=state.options.length;
+  if(n<1||m<1) return;
+  // choose & sanitise the two floor criteria (default: two highest-weighted)
+  const order=[...Array(n).keys()].sort((a,b)=>res.crit.w[b]-res.crit.w[a]);
+  let ax=state.axisX, az=state.axisY;
+  if(ax==null||ax<0||ax>=n) ax=order[0]??0;
+  if(n>=2){ if(az==null||az<0||az>=n||az===ax) az=order.find(k=>k!==ax) ?? ((ax+1)%n); }
+  else az=ax;
+  state.axisX=ax; state.axisY=az;
+
+  const span=8, c0=-span/2, fy=-2.6, hSpan=6.2;
+  const xMax=Math.max(...res.opts[ax].w,1e-6);
+  const zMax=Math.max(...res.opts[az].w,1e-6);
+  const gMax=Math.max(...res.global,1e-6);
+  const X=s=> c0 + (s/xMax)*span;
+  const Z=s=> c0 + (s/zMax)*span;
+  const Y=g=> fy + (g/gMax)*hSpan;
+  const corner=new THREE.Vector3(c0,fy,c0);
+
+  // floor grid + plane
+  const grid=new THREE.GridHelper(span,8,0x2c3858,0x1b2540); grid.position.set(0,fy,0); group.add(grid);
+  const floor=new THREE.Mesh(new THREE.PlaneGeometry(span,span),
+    new THREE.MeshBasicMaterial({color:0x0c1422,transparent:true,opacity:0.55}));
+  floor.rotation.x=-Math.PI/2; floor.position.set(0,fy-0.01,0); group.add(floor);
+
+  // "better" hint arrow across the floor toward the far corner (higher on both = better)
+  group.add(axisArrow(new THREE.Vector3(c0+0.4,fy+0.02,c0+0.4), new THREE.Vector3(c0+span*0.62,fy+0.02,c0+span*0.62), new THREE.Color('#3f4d72')));
+  const betterLab=makeLabel('better','#6b7aa3'); betterLab.position.set(c0+span*0.5,fy+0.35,c0+span*0.5); betterLab.scale.multiplyScalar(0.8); group.add(betterLab);
+
+  // axes
+  group.add(axisArrow(corner, new THREE.Vector3(c0+span+0.3,fy,c0), new THREE.Color('#46c2b4'))); // X across
+  group.add(axisArrow(corner, new THREE.Vector3(c0,fy,c0+span+0.3), new THREE.Color('#9b8cff'))); // Z depth
+  group.add(axisArrow(corner, new THREE.Vector3(c0,fy+hSpan+0.5,c0), new THREE.Color('#f2c45a'))); // Y goal
+  const lx=makeLabel(state.criteria[ax],'#5fd0c3'); lx.position.set(c0+span*0.5,fy-0.55,c0-0.2); group.add(lx);
+  const lz=makeLabel(state.criteria[az],'#b3a6ff'); lz.position.set(c0-0.2,fy-0.55,c0+span*0.5); group.add(lz);
+  const ly=makeLabel('Goal · overall priority','#f2c45a'); ly.position.set(c0,fy+hSpan+0.95,c0); group.add(ly);
+
+  // option pillars
+  const maxG=gMax;
+  state.options.forEach((on,i)=>{
+    const sx=res.opts[ax].w[i], sz=res.opts[az].w[i], g=res.global[i];
+    const px=X(sx), pz=Z(sz), py=Y(g);
+    const isWin=g>=maxG-1e-9;
+    const col=isWin?'#d9a441':scoreColor(g/gMax);
+    const h=Math.max(py-fy,0.02);
+    const pil=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,h,10),
+      new THREE.MeshStandardMaterial({color:col,emissive:col,emissiveIntensity:0.3,transparent:true,opacity:0.55,roughness:0.6}));
+    pil.position.set(px,fy+h/2,pz); group.add(pil);
+    const cap=nodeMesh(0.16+(g/gMax)*0.34,new THREE.Color(col)); cap.position.set(px,py,pz); group.add(cap);
+    const fp=new THREE.Mesh(new THREE.RingGeometry(0.13,0.2,24),
+      new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.5,side:THREE.DoubleSide}));
+    fp.rotation.x=-Math.PI/2; fp.position.set(px,fy+0.012,pz); group.add(fp);
+    if(isWin){
+      const ring=new THREE.Mesh(new THREE.TorusGeometry(0.16+(g/gMax)*0.34+0.12,0.026,10,40),
+        new THREE.MeshStandardMaterial({color:'#f2c45a',emissive:'#f2c45a',emissiveIntensity:0.6}));
+      ring.position.set(px,py,pz); ring.rotation.x=Math.PI/2; group.add(ring);
+    }
+    const lab=makeLabel(`${on}  ${(g*100).toFixed(0)}%`, isWin?'#f2c45a':'#cfc7f5');
+    lab.position.set(px,py+0.5+(g/gMax)*0.3,pz); group.add(lab);
+  });
+}
+
+function buildTreeScene(res){
+  const n=state.criteria.length, m=state.options.length;
+  const goalPos=new THREE.Vector3(0,3.4,0);
+  const critY=0.6, optY=-2.6;
+  const critR=Math.max(2.6, n*0.7), optR=Math.max(2.8, m*0.95);
+  const critPos=state.criteria.map((_,i)=>{
+    const ang=(i/n)*Math.PI*2 - Math.PI/2;
+    return new THREE.Vector3(Math.cos(ang)*critR, critY, Math.sin(ang)*critR*0.55);
+  });
+  const optPos=state.options.map((_,i)=>{
+    const ang=(i/m)*Math.PI*2 - Math.PI/2 + 0.3;
+    return new THREE.Vector3(Math.cos(ang)*optR, optY, Math.sin(ang)*optR*0.6);
+  });
+  for(let c=0;c<n;c++) for(let i=0;i<m;i++){
+    const contrib=(res.critW[c]||0)*(res.opts[c].w[i]||0);
+    const op=Math.min(0.6, 0.06+contrib*2.2);
+    group.add(edge(critPos[c],optPos[i],new THREE.Color('#3a4a6a'),op,0));
+  }
+  for(let c=0;c<n;c++){
+    const wt=res.crit.w[c];
+    group.add(edge(goalPos,critPos[c],new THREE.Color('#d9a441'),0.5+wt*0.5, 0.03+wt*0.16));
+  }
+  const goal=nodeMesh(0.62,new THREE.Color('#f2c45a')); goal.position.copy(goalPos); group.add(goal);
+  const gl=makeLabel(state.goal||'Goal','#f2c45a'); gl.position.copy(goalPos).add(new THREE.Vector3(0,0.95,0)); group.add(gl);
+  state.criteria.forEach((cn,c)=>{
+    const wt=res.crit.w[c];
+    const node=nodeMesh(0.28+wt*1.0,new THREE.Color(PALETTE[c%PALETTE.length]));
+    node.position.copy(critPos[c]); group.add(node);
+    const lab=makeLabel(`${cn}  ${(wt*100).toFixed(0)}%`, PALETTE[c%PALETTE.length]);
+    lab.position.copy(critPos[c]).add(new THREE.Vector3(0,0.55+wt*0.9,0)); group.add(lab);
+  });
+  const maxG=Math.max(...res.global,0.0001);
+  state.options.forEach((on,i)=>{
+    const g=res.global[i];
+    const isWin=g>=maxG-1e-9;
+    const node=nodeMesh(0.3+g*1.6, new THREE.Color(isWin?'#d9a441':'#9b8cff'));
+    node.position.copy(optPos[i]); group.add(node);
+    if(isWin){
+      const ring=new THREE.Mesh(new THREE.TorusGeometry(0.3+g*1.6+0.18,0.03,10,40),
+        new THREE.MeshStandardMaterial({color:'#f2c45a',emissive:'#f2c45a',emissiveIntensity:0.6}));
+      ring.position.copy(optPos[i]); ring.rotation.x=Math.PI/2; group.add(ring);
+    }
+    const lab=makeLabel(`${on}  ${(g*100).toFixed(0)}%`, isWin?'#f2c45a':'#b9adf0');
+    lab.position.copy(optPos[i]).add(new THREE.Vector3(0,0.6+g*1.5,0)); group.add(lab);
+  });
+}
+
+/* ----- scene chrome: HUD text, legend, axis selectors, view toggle ----- */
+function updateSceneChrome(res){
+  const space = state.view==='space';
+  const hud=$('#sceneHud');
+  if(hud) hud.innerHTML = space
+    ? '<b>DECISION SPACE</b> · height = overall priority · floor = trade-off'
+    : '<b>HIERARCHY</b> · goal → criteria → options';
+  const sc=$('#spaceCtrls'); if(sc) sc.style.display = space ? 'flex' : 'none';
+  const lg=$('#legend'); if(lg) lg.style.display = space ? 'none' : 'flex';
+  $$('#viewSeg button').forEach(b=>b.classList.toggle('on', b.dataset.view===state.view));
+  if(space) populateAxisSelectors(res);
+}
+function populateAxisSelectors(res){
+  const n=state.criteria.length;
+  const sx=$('#axisXSel'), sz=$('#axisYSel');
+  if(!sx||!sz) return;
+  const opts=state.criteria.map((c,i)=>`<option value="${i}">${esc(c)}</option>`).join('');
+  sx.innerHTML=opts; sz.innerHTML=opts;
+  sx.value=String(state.axisX); sz.value=String(state.axisY);
+  sz.parentElement.style.display = n>=2 ? 'flex' : 'none';
+}
+
+function animate(){
+  raf=requestAnimationFrame(animate);
+  if(autoSpin) cam.theta+=0.0022;
+  const x=cam.target.x+cam.radius*Math.sin(cam.phi)*Math.cos(cam.theta);
+  const y=cam.target.y+cam.radius*Math.cos(cam.phi);
+  const z=cam.target.z+cam.radius*Math.sin(cam.phi)*Math.sin(cam.theta);
+  camera.position.set(x,y,z);
+  camera.lookAt(cam.target);
+  renderer.render(scene,camera);
+}
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+let booted=false;
+function boot(){ if(booted) return; booted=true; initScene(); }
+rebuildMatrices();
+renderLists();
+initAssist();
+window.addEventListener('load',boot);
+if(document.readyState==='complete') boot();
+// re-render 3D labels once the display font has actually loaded
+if(document.fonts && document.fonts.ready){ document.fonts.ready.then(()=>{ if(group) refreshScene(); }); }
+</script>
+</body>
+</html>
